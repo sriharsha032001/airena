@@ -6,7 +6,7 @@ import { TimelineProvider } from "@/components/providers/timeline-provider";
 import Navbar from "@/components/ui/navbar";
 import Footer from "@/components/ui/footer";
 
-const openSans = Open_Sans({ subsets: ["latin"], weight: ["400", "600", "700"] });
+const openSans = Open_Sans({ subsets: ["latin"], weight: ["400", "600", "700"],variable: "--font-open-sans", });
 
 export const metadata: Metadata = {
   title: "AIrena – Multi-LLM Query Productivity App",
@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={openSans.className}>
+      <body className={`${openSans.variable} font-sans`}>
         <AuthProvider>
           <TimelineProvider>
             <Navbar />

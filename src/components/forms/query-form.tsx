@@ -1,15 +1,29 @@
 "use client";
 import { useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
-import { useTimeline } from "@/components/providers/timeline-provider";
 
-export default function QueryForm() {
-  const [query, setQuery] = useState("");
+interface QueryFormProps {
+  query: string;
+  setQuery: (q: string) => void;
+  selectedModels: string[];
+  setSelectedModels: (models: string[]) => void;
+  setGeminiResponse: (resp: { text: string; time: number } | null) => void;
+  setChatgptResponse: (resp: { text: string; time: number } | null) => void;
+  setComparisonVerdict: (v: any) => void;
+}
+
+export default function QueryForm({
+  query,
+  setQuery,
+  selectedModels,
+  setSelectedModels,
+  setGeminiResponse,
+  setChatgptResponse,
+  setComparisonVerdict,
+}: QueryFormProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<string[]>(["chatgpt"]);
   const { user } = useAuth();
-  const { addEntry } = useTimeline();
 
   const MODELS = [
     { key: "chatgpt", label: "ChatGPT" },
@@ -17,14 +31,19 @@ export default function QueryForm() {
   ];
 
   const toggleModel = (key: string) => {
-    setSelected((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    setSelectedModels(
+      selectedModels.includes(key)
+        ? selectedModels.filter((k) => k !== key)
+        : [...selectedModels, key]
     );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setComparisonVerdict(null);
+    setGeminiResponse(null);
+    setChatgptResponse(null);
     if (!query.trim()) {
       setError("Please enter a query.");
       return;
@@ -33,15 +52,14 @@ export default function QueryForm() {
       setError("You must be logged in.");
       return;
     }
-    if (selected.length === 0) {
+    if (selectedModels.length === 0) {
       setError("Select at least one model.");
       return;
     }
     setLoading(true);
     try {
-      const t0 = Date.now();
       const results = await Promise.all(
-        selected.map(async (key) => {
+        selectedModels.map(async (key) => {
           const api = key === "chatgpt" ? "/api/llm/chatgpt" : "/api/llm/gemini";
           const tStart = Date.now();
           try {
@@ -67,33 +85,12 @@ export default function QueryForm() {
           }
         })
       );
-      const responses: Record<string, { text: string; time: number }> = {};
       results.forEach((r) => {
-        responses[r.key] = { text: r.answer, time: r.time };
+        if (r.key === "gemini") setGeminiResponse({ text: r.answer, time: r.time });
+        if (r.key === "chatgpt") setChatgptResponse({ text: r.answer, time: r.time });
       });
-      // Store query and response in Supabase
-      const storeRes = await fetch("/api/queries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: user.id,
-          query,
-          selectedModels: selected,
-          responses,
-        }),
-      });
-      if (!storeRes.ok) {
-        const errData = await storeRes.json();
-        throw new Error(errData.error || "Failed to store query");
-      }
-      addEntry({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        prompt: query,
-        models: selected,
-        responses,
-        createdAt: t0,
-      });
-      setQuery("");
+      // Optionally clear query after submit:
+      // setQuery("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -127,7 +124,7 @@ export default function QueryForm() {
           <label key={model.key} className="flex items-center gap-2 cursor-pointer select-none text-black font-medium">
             <input
               type="checkbox"
-              checked={selected.includes(model.key)}
+              checked={selectedModels.includes(model.key)}
               onChange={() => toggleModel(model.key)}
               className="accent-black w-5 h-5 rounded border border-[#e0e0e0] focus:ring-2 focus:ring-black transition"
             />

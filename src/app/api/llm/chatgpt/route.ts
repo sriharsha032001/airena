@@ -10,7 +10,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Query is required" }, { status: 400 });
   }
   try {
-    // Always append English-only instruction
     const finalPrompt = `${query}\n\nRespond only in English, even if the question is in another language.`;
     console.log("[ChatGPT] Final prompt:", finalPrompt);
     const t0 = Date.now();
@@ -21,12 +20,12 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant." },
+          { role: "system", content: "You are a helpful assistant. Keep your response clear, structured, and strictly under 500 characters." },
           { role: "user", content: finalPrompt },
         ],
-        max_tokens: 1024,
+        max_tokens: 600,
         temperature: 0.7,
       }),
     });
@@ -36,10 +35,14 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       return NextResponse.json({ error: data.error?.message || "OpenAI error" }, { status: 500 });
     }
-    const answer = data.choices?.[0]?.message?.content?.trim();
+    let answer = data.choices?.[0]?.message?.content?.trim() || "";
     if (!answer) {
       console.warn("[ChatGPT] No usable answer in response:", data);
     }
+    if (answer.length > 500) {
+      answer = answer.slice(0, 500);
+    }
+    console.log(`[ChatGPT] Response length: ${answer.length} characters`);
     return NextResponse.json({ answer: answer || "ChatGPT did not return a response.", time: t1 - t0 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

@@ -25,7 +25,7 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        emailRedirectTo: "http://localhost:3000/login",
+        emailRedirectTo: "/login",
       },
     });
     if (error) {

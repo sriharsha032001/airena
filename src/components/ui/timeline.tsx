@@ -1,7 +1,8 @@
 "use client";
 import { useTimeline } from "@/components/providers/timeline-provider";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { AnimatePresence as MotionPresence } from "framer-motion";
 
 const MODEL_META: Record<string, { label: string }> = {
   chatgpt: { label: "ChatGPT" },
@@ -56,13 +57,22 @@ function FullResultModal({ open, onClose, text, model }: { open: boolean; onClos
   );
 }
 
-export default function Timeline() {
-  const { timeline } = useTimeline();
+export default function Timeline({ modelKey }: { modelKey?: string }) {
+  const { timeline, clearTimeline } = useTimeline();
   const loading = false; // Replace with real loading state if available
   const [modal, setModal] = useState<{ text: string; model: string } | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   // Track expanded state for each response card
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  const [compareResult, setCompareResult] = useState<Record<string, { verdict: string; analysis: string; error?: string }>>({});
+  const [compareLoading, setCompareLoading] = useState<Record<string, boolean>>({});
+  const [showToast, setShowToast] = useState(false);
+
+  const handleClearAll = useCallback(() => {
+    clearTimeline();
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  }, [clearTimeline]);
 
   useEffect(() => {
     if (timelineRef.current) {
@@ -70,7 +80,12 @@ export default function Timeline() {
     }
   }, [timeline]);
 
-  if (timeline.length === 0) {
+  // Filter timeline entries if modelKey is provided
+  const filteredTimeline = modelKey
+    ? timeline.filter((entry) => entry.models.includes(modelKey))
+    : timeline;
+
+  if (filteredTimeline.length === 0) {
     return (
       <div className="w-full max-w-2xl mx-auto p-6 text-center text-[#888] bg-white rounded-xl border border-[#e0e0e0]">
         No queries yet. Your research timeline will appear here.
@@ -78,10 +93,53 @@ export default function Timeline() {
     );
   }
 
+  const handleCompare = async (entry: any) => {
+    setCompareLoading((prev) => ({ ...prev, [entry.id]: true }));
+    setCompareResult((prev) => ({ ...prev, [entry.id]: undefined }));
+    try {
+      const responses = entry.models.map((model: string) => ({
+        model,
+        text: entry.responses[model]?.text || "",
+      }));
+      const res = await fetch("/api/llm/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ responses, prompt: entry.prompt }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setCompareResult((prev) => ({ ...prev, [entry.id]: { verdict: '', analysis: '', error: data.error } }));
+      } else {
+        setCompareResult((prev) => ({ ...prev, [entry.id]: { verdict: data.verdict, analysis: data.analysis } }));
+      }
+    } catch (err: any) {
+      setCompareResult((prev) => ({ ...prev, [entry.id]: { verdict: '', analysis: '', error: err?.message || 'Unknown error' } }));
+    } finally {
+      setCompareLoading((prev) => ({ ...prev, [entry.id]: false }));
+    }
+  };
+
   return (
-    <div className="w-full max-w-2xl mx-auto p-4 flex flex-col gap-8" style={{ maxHeight: "70vh" }} ref={timelineRef}>
+    <div className="w-full max-w-2xl mx-auto p-4 flex flex-col gap-8 relative" style={{ maxHeight: "70vh" }} ref={timelineRef}>
+      {/* Clear All Button */}
+      {filteredTimeline.length > 0 && (
+        <div className="absolute right-0 top-0 z-10">
+          <button
+            onClick={handleClearAll}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition mt-2 mr-2"
+          >
+            Clear All
+          </button>
+        </div>
+      )}
+      {/* Toast */}
+      {showToast && (
+        <div className="fixed top-6 right-6 bg-black text-white px-4 py-2 rounded shadow-lg z-50 animate-fade-in">
+          All queries cleared!
+        </div>
+      )}
       <AnimatePresence>
-        {timeline.map((entry) => (
+        {filteredTimeline.map((entry) => (
           <motion.div
             key={entry.id}
             initial={{ opacity: 0, y: 24 }}
@@ -97,7 +155,10 @@ export default function Timeline() {
             </div>
             <div className="font-semibold mb-1 text-black">Responses</div>
             <div className="flex flex-col md:flex-row gap-4">
-              {entry.models.map((model) => {
+              {(modelKey
+                ? [modelKey]
+                : entry.models
+              ).map((model) => {
                 const meta = MODEL_META[model] || { label: model };
                 const resp = entry.responses[model];
                 const isLong = (resp?.text?.length || 0) > 400;
@@ -137,6 +198,40 @@ export default function Timeline() {
                 );
               })}
             </div>
+            {/* Compare Button */}
+            {entry.models.length >= 2 && (
+              <div className="mt-4 flex flex-col items-start">
+                <button
+                  className="px-5 py-2 rounded-lg bg-black text-white font-semibold shadow hover:bg-[#222] transition disabled:opacity-60"
+                  onClick={() => handleCompare(entry)}
+                  disabled={compareLoading[entry.id]}
+                >
+                  {compareLoading[entry.id] ? 'Comparing...' : 'Compare'}
+                </button>
+              </div>
+            )}
+            {/* Comparison Result */}
+            <MotionPresence>
+              {compareResult[entry.id] && (
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 16 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="mt-4 p-4 rounded-xl border border-[#e0e0e0] bg-[#f9f9f9] shadow-md"
+                >
+                  {compareResult[entry.id].error ? (
+                    <div className="text-red-500 font-semibold">{compareResult[entry.id].error}</div>
+                  ) : (
+                    <>
+                      <div className="font-bold text-black mb-1">GPT-4 Turbo Comparison</div>
+                      <div className="text-black mb-2"><span className="font-semibold">Verdict:</span> {compareResult[entry.id].verdict}</div>
+                      <div className="text-[#444] whitespace-pre-line"><span className="font-semibold">Analysis:</span> {compareResult[entry.id].analysis}</div>
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </MotionPresence>
           </motion.div>
         ))}
       </AnimatePresence>
