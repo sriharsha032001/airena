@@ -2,6 +2,14 @@
 import { useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 
+// 1️⃣ Define the type
+interface ComparisonVerdict {
+  verdict: string;
+  analysis: string;
+  error?: string;
+}
+
+// 2️⃣ Use the type in props
 interface QueryFormProps {
   query: string;
   setQuery: (q: string) => void;
@@ -9,7 +17,7 @@ interface QueryFormProps {
   setSelectedModels: (models: string[]) => void;
   setGeminiResponse: (resp: { text: string; time: number } | null) => void;
   setChatgptResponse: (resp: { text: string; time: number } | null) => void;
-  setComparisonVerdict: (v: any) => void;
+  setComparisonVerdict: (v: ComparisonVerdict | null) => void;
 }
 
 export default function QueryForm({
@@ -142,4 +150,4 @@ export default function QueryForm({
       </button>
     </form>
   );
-} 
+}

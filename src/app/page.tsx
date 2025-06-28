@@ -48,11 +48,16 @@ export default function Home() {
       } else {
         setComparisonVerdict({ verdict: data.verdict, analysis: data.analysis });
       }
-    } catch (err: any) {
-      setComparisonVerdict({ verdict: '', analysis: '', error: err?.message || 'Unknown error' });
+        } catch (err: unknown) {
+      setComparisonVerdict({
+        verdict: '',
+        analysis: '',
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
     } finally {
       setLoadingCompare(false);
     }
+
   };
 
   if (loading) {
