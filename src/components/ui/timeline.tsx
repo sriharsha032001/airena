@@ -1,5 +1,6 @@
 "use client";
 import { useTimeline } from "@/components/providers/timeline-provider";
+import type { TimelineEntry } from "@/components/providers/timeline-provider"; // 👈 Import the right type!
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { AnimatePresence as MotionPresence } from "framer-motion";
@@ -59,10 +60,9 @@ function FullResultModal({ open, onClose, text, model }: { open: boolean; onClos
 
 export default function Timeline({ modelKey }: { modelKey?: string }) {
   const { timeline, clearTimeline } = useTimeline();
-  const loading = false; // Replace with real loading state if available
+  const loading = false;
   const [modal, setModal] = useState<{ text: string; model: string } | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
-  // Track expanded state for each response card
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [compareResult, setCompareResult] = useState<Record<string, { verdict: string; analysis: string; error?: string }>>({});
   const [compareLoading, setCompareLoading] = useState<Record<string, boolean>>({});
@@ -82,7 +82,7 @@ export default function Timeline({ modelKey }: { modelKey?: string }) {
 
   // Filter timeline entries if modelKey is provided
   const filteredTimeline = modelKey
-    ? timeline.filter((entry) => entry.models.includes(modelKey))
+    ? timeline.filter((entry: TimelineEntry) => entry.models.includes(modelKey))
     : timeline;
 
   if (filteredTimeline.length === 0) {
@@ -93,9 +93,14 @@ export default function Timeline({ modelKey }: { modelKey?: string }) {
     );
   }
 
-  const handleCompare = async (entry: any) => {
+  const handleCompare = async (entry: TimelineEntry) => {
     setCompareLoading((prev) => ({ ...prev, [entry.id]: true }));
-    setCompareResult((prev) => ({ ...prev, [entry.id]: undefined }));
+    setCompareResult(prev => {
+    const newResult = { ...prev };
+    delete newResult[entry.id];
+    return newResult;
+});
+
     try {
       const responses = entry.models.map((model: string) => ({
         model,
@@ -112,8 +117,15 @@ export default function Timeline({ modelKey }: { modelKey?: string }) {
       } else {
         setCompareResult((prev) => ({ ...prev, [entry.id]: { verdict: data.verdict, analysis: data.analysis } }));
       }
-    } catch (err: any) {
-      setCompareResult((prev) => ({ ...prev, [entry.id]: { verdict: '', analysis: '', error: err?.message || 'Unknown error' } }));
+    } catch (err: unknown) {
+      setCompareResult((prev) => ({
+        ...prev,
+        [entry.id]: {
+          verdict: '',
+          analysis: '',
+          error: err instanceof Error ? err.message : 'Unknown error',
+        },
+      }));
     } finally {
       setCompareLoading((prev) => ({ ...prev, [entry.id]: false }));
     }
@@ -148,17 +160,18 @@ export default function Timeline({ modelKey }: { modelKey?: string }) {
             transition={{ duration: 0.35, ease: "easeOut" }}
             className="bg-white border border-[#e0e0e0] rounded-2xl p-6 flex flex-col gap-4 shadow-md hover:shadow-lg transition-shadow"
           >
-            <div className="text-xs text-[#888] mb-1">{new Date(entry.createdAt).toLocaleString()}</div>
+            <div className="text-xs text-[#888] mb-1">
+              {typeof entry.createdAt === "number"
+                ? new Date(entry.createdAt).toLocaleString()
+                : new Date(entry.createdAt as string).toLocaleString()}
+            </div>
             <div className="font-bold text-lg mb-2 text-black">Prompt</div>
             <div className="bg-[#f9f9f9] rounded p-3 mb-2 text-base text-black border border-[#e0e0e0] select-text cursor-default">
               {entry.prompt}
             </div>
             <div className="font-semibold mb-1 text-black">Responses</div>
             <div className="flex flex-col md:flex-row gap-4">
-              {(modelKey
-                ? [modelKey]
-                : entry.models
-              ).map((model) => {
+              {(modelKey ? [modelKey] : entry.models).map((model) => {
                 const meta = MODEL_META[model] || { label: model };
                 const resp = entry.responses[model];
                 const isLong = (resp?.text?.length || 0) > 400;
@@ -243,4 +256,4 @@ export default function Timeline({ modelKey }: { modelKey?: string }) {
       />
     </div>
   );
-} 
+}
