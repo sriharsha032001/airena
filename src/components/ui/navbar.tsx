@@ -1,7 +1,7 @@
 'use client';
 import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
-import LogoutButton from "./logout-button";
+// import LogoutButton from "./logout-button";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
 
