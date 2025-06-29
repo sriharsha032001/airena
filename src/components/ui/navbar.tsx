@@ -1,6 +1,7 @@
 'use client';
 import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
+import LogoutButton from "./logout-button";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
 
@@ -40,8 +41,17 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 left-0 w-full z-30 bg-white border-b border-[#e0e0e0] h-16 flex items-center px-4 md:px-8" style={{ fontFamily: 'Open Sans, ui-sans-serif, sans-serif' }}>
       <div className="flex-1 flex items-center">
-        <Link href="/" className="text-xl font-bold text-black tracking-tight hover:opacity-80 transition">
-          Aural
+        <Link href="/" className="text-xl font-bold tracking-tight hover:opacity-80 transition flex items-center gap-1 select-none">
+          {/* Gradient "AI" */}
+          <span
+            className="bg-gradient-to-r from-blue-600 via-purple-500 to-pink-400 bg-clip-text text-transparent"
+            style={{ fontWeight: 800, letterSpacing: '-0.04em', fontSize: "1.45rem" }}
+          >
+            AI
+          </span>
+          <span className="text-black ml-1" style={{ letterSpacing: '-0.03em' }}>
+            rena
+          </span>
         </Link>
       </div>
       <div className="flex-1 flex items-center justify-end gap-4">
@@ -78,4 +88,4 @@ export default function Navbar() {
       </div>
     </nav>
   );
-} 
+}
