@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,31 +14,24 @@ export async function POST(req: NextRequest) {
     // Prepend system prompt to user query
     const systemPrompt = "You are a helpful assistant. Keep your response clear, structured, and strictly under 500 characters.";
     const fullPrompt = `${systemPrompt}\n${query}`;
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-002:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          { parts: [{ text: fullPrompt }] },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 600,
-        },
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      return NextResponse.json({ error: data.error?.message || "Gemini error", source: "gemini" }, { status: 500 });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const result = await model.generateContent(fullPrompt);
+    const response = result.response;
+    const text = response.text();
+    if (text.length > 500) {
+      return NextResponse.json({ error: "Response length exceeds 500 characters", source: "gemini" }, { status: 400 });
     }
-    let answer = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    if (answer.length > 500) {
-      answer = answer.slice(0, 500);
+    console.log(`[Gemini] Response length: ${text.length} characters`);
+    return NextResponse.json({ answer: text, source: "gemini" });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    console.error("Gemini API Error:", errorMessage);
+    
+    if (errorMessage.includes("overloaded")) {
+      return NextResponse.json({ error: "Model is currently overloaded. Please wait and try again.", source: "gemini" }, { status: 503 });
     }
-    console.log(`[Gemini] Response length: ${answer.length} characters`);
-    return NextResponse.json({ answer, source: "gemini" });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message, source: "gemini" }, { status: 500 });
+
+    return NextResponse.json({ error: errorMessage, source: "gemini" }, { status: 500 });
   }
 } 

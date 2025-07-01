@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { toast } from "react-hot-toast";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -9,27 +10,37 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
   const isStrongPassword = (val: string) => val.length >= 8;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!name) {
+        toast.error("Please enter your full name.");
+        return;
+    }
+    if (!isValidEmail(email)) {
+        toast.error("Please enter a valid email address.");
+        return;
+    }
+    if (!isStrongPassword(password)) {
+        toast.error("Password must be at least 8 characters.");
+        return;
+    }
+
     setLoading(true);
-    setError("");
-    setSuccess("");
     // Register with Supabase (email verification enabled in dashboard)
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: "/login",
+        emailRedirectTo: `${window.location.origin}/login?verified=1`,
       },
     });
     if (error) {
-      setError(error.message);
+      toast.error(error.message);
       setLoading(false);
       return;
     }
@@ -40,10 +51,8 @@ export default function RegisterPage() {
       created_at: new Date().toISOString(),
     });
     setLoading(false);
-    setSuccess("Check your inbox to verify your email.");
-    setTimeout(() => {
-      router.push("/login");
-    }, 1800);
+    toast.success("Registration successful! Check your inbox to verify your email.");
+    router.push("/login");
   };
 
   return (
@@ -93,16 +102,11 @@ export default function RegisterPage() {
               minLength={8}
               style={{ fontFamily: 'inherit', fontSize: '1rem' }}
             />
-            {password && !isStrongPassword(password) && (
-              <span className="text-red-500 text-xs mt-1">Password must be at least 8 characters.</span>
-            )}
           </div>
-          {error && <div className="text-red-500 text-sm text-center">{error}</div>}
-          {success && <div className="text-green-600 text-sm text-center">{success}</div>}
           <button
             type="submit"
             className="w-full py-3 rounded-lg bg-black text-white font-bold text-base hover:bg-[#222] focus:ring-2 focus:ring-black focus:outline-none transition disabled:opacity-60 flex items-center justify-center"
-            disabled={loading || !name || !isValidEmail(email) || !isStrongPassword(password)}
+            disabled={loading}
             style={{ letterSpacing: 0.5 }}
           >
             {loading ? (

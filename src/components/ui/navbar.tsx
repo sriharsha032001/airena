@@ -6,7 +6,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, credits } = useAuth();
   const [profile, setProfile] = useState<{ name?: string; avatar_url?: string } | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -21,6 +21,8 @@ export default function Navbar() {
         .then(({ data }) => {
           setProfile(data || null);
         });
+    } else {
+      setProfile(null);
     }
   }, [user]);
 
@@ -55,35 +57,48 @@ export default function Navbar() {
         </Link>
       </div>
       <div className="flex-1 flex items-center justify-end gap-4">
-        {user && (
-          <div className="relative" ref={dropdownRef}>
-            <button
-              className="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-black rounded-full px-2 py-1 hover:bg-[#f5f5f5] transition"
-              onClick={() => setDropdownOpen((v) => !v)}
-              aria-label="User menu"
-            >
-              {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-[#e0e0e0]" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-[#e0e0e0] flex items-center justify-center text-lg font-bold text-black">
-                  {profile?.name ? profile.name[0] : (user.email ?? '')[0]}
-                </div>
-              )}
-              <span className="hidden sm:block font-semibold text-black text-base max-w-[120px] truncate">{profile?.name || (user.email ?? '')}</span>
-              <svg className="w-4 h-4 ml-1 text-[#888]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-            </button>
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e0e0e0] rounded-lg shadow-lg py-2 z-50">
-                {/* <Link href="/profile" className="block px-4 py-2 text-black hover:bg-[#f5f5f5] transition">Profile</Link> */}
-                <button
-                  className="w-full text-left px-4 py-2 text-black hover:bg-[#f5f5f5] transition"
-                  onClick={async () => { setDropdownOpen(false); await logout(); }}
-                >
-                  Logout
-                </button>
+        {!user ? (
+          <Link href="/login" className="px-4 py-2 rounded-lg bg-black text-white font-semibold shadow hover:bg-[#222] transition">
+            Login
+          </Link>
+        ) : (
+          <>
+            {credits !== null && (
+              <div className="hidden sm:flex items-center gap-2 text-sm font-semibold" title="Each query uses credits based on the model.">
+                <span className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700">
+                  Credits: <span className="font-bold text-blue-600">{credits.credits}</span>
+                </span>
               </div>
             )}
-          </div>
+            <Link href="/pricing" className="px-4 py-2 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition-all">Pricing</Link>
+            <div className="relative" ref={dropdownRef}>
+              <button
+                className="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-black rounded-full px-2 py-1 hover:bg-[#f5f5f5] transition"
+                onClick={() => setDropdownOpen((v) => !v)}
+                aria-label="User menu"
+              >
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-[#e0e0e0]" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-[#e0e0e0] flex items-center justify-center text-lg font-bold text-black">
+                    {profile?.name ? profile.name[0] : (user.email ?? '')[0]}
+                  </div>
+                )}
+                <span className="hidden sm:block font-semibold text-black text-base max-w-[120px] truncate">{profile?.name || (user.email ?? '')}</span>
+                <svg className="w-4 h-4 ml-1 text-[#888]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e0e0e0] rounded-lg shadow-lg py-2 z-50">
+                  <button
+                    className="w-full text-left px-4 py-2 text-black hover:bg-[#f5f5f5] transition"
+                    onClick={async () => { setDropdownOpen(false); await logout(); }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </nav>

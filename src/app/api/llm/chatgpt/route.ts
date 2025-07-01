@@ -30,11 +30,18 @@ export async function POST(req: NextRequest) {
       }),
     });
     const t1 = Date.now();
-    const data = await response.json();
-    console.log("[ChatGPT] API response:", JSON.stringify(data));
     if (!response.ok) {
-      return NextResponse.json({ error: data.error?.message || "OpenAI error" }, { status: 500 });
+      const errorBody = await response.json();
+      const errorMessage = errorBody.error?.message || "An unknown error occurred with OpenAI";
+      console.error("OpenAI API Error:", errorMessage);
+      
+      if (errorMessage.includes("overloaded") || response.status === 429) {
+        return NextResponse.json({ error: "Model is currently overloaded. Please wait and try again." }, { status: 503 });
+      }
+
+      return NextResponse.json({ error: errorMessage }, { status: response.status });
     }
+    const data = await response.json();
     let answer = data.choices?.[0]?.message?.content?.trim() || "";
     if (!answer) {
       console.warn("[ChatGPT] No usable answer in response:", data);
@@ -44,9 +51,9 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[ChatGPT] Response length: ${answer.length} characters`);
     return NextResponse.json({ answer: answer || "ChatGPT did not return a response.", time: t1 - t0 });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("ChatGPT API error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    console.error("ChatGPT Route Error:", errorMessage);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 

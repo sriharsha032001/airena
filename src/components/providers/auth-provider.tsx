@@ -1,97 +1,152 @@
 "use client";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { Session, SupabaseClient, User } from "@supabase/auth-helpers-nextjs";
 import { supabase } from "@/lib/supabase/client";
-import { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
+
+interface UserCredits {
+    credits: number;
+}
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  supabase: SupabaseClient;
+  credits: UserCredits | null;
+  refetchCredits: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [credits, setCredits] = useState<UserCredits | null>(null);
   const router = useRouter();
 
+  const refetchCredits = async () => {
+    if (user) {
+        const { data } = await supabase
+            .from("user_credits")
+            .select("credits")
+            .eq("id", user.id)
+            .single();
+        setCredits(data || null);
+    }
+  };
+
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const fetchCredits = async (userId: string) => {
+        const { data, error } = await supabase
+            .from("user_credits")
+            .select("credits")
+            .eq("id", userId)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') {
+            toast.error("Unable to fetch credits.");
+            setCredits(null);
+        } else if (data) {
+            setCredits(data || null);
+        }
+    };
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const currentUser = session?.user ?? null;
+        setSession(session);
+        setUser(currentUser);
+        setLoading(false);
+
+        if (currentUser) {
+            fetchCredits(currentUser.id);
+        } else {
+            setCredits(null);
+        }
+
+        if (event === "SIGNED_IN" && currentUser) {
+          // Check if user credits exist
+          const { data: creditsData, error: selectError } = await supabase
+            .from("user_credits")
+            .select("id")
+            .eq("id", currentUser.id)
+            .single();
+
+          // If no credits exist and there's no error other than "not found"
+          if (!creditsData && (!selectError || selectError.code === 'PGRST116')) {
+            // Grant welcome credits
+            const { error: insertError } = await supabase
+              .from("user_credits")
+              .insert({
+                id: currentUser.id,
+                email: currentUser.email,
+                credits: 20, // Welcome credits
+                last_updated: new Date().toISOString(),
+              });
+            
+            if (insertError) {
+              toast.error("Failed to grant welcome credits, please try again.");
+            } else {
+              toast.success("Welcome! We've added 20 free credits to your account.");
+              fetchCredits(currentUser.id); // Re-fetch credits after granting
+            }
+          }
+        }
+      }
+    );
+
+    // Initial session fetch
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      setSession(session);
       setLoading(false);
+      if (currentUser) {
+        fetchCredits(currentUser.id);
+      }
     });
-    // Initial load
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null);
-      setLoading(false);
-    });
+
     return () => {
-      listener.subscription.unsubscribe();
+      authListener.subscription.unsubscribe();
     };
   }, []);
-
-  // Post-login user existence check (for Google OAuth)
-  useEffect(() => {
-    // Only run if user is logged in
-    if (!user) return;
-    // Only run on /login or root (not /register)
-    if (typeof window !== "undefined" && window.location.pathname.startsWith("/register")) return;
-    // Only run for Google OAuth (user has no app_metadata.provider for email/password)
-    const provider = (user as User & { app_metadata?: { provider?: string } })?.app_metadata?.provider;
-    if (provider !== "google") return;
-    // Check if user exists in 'users' table
-    (async () => {
-      const { data } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", user.email)
-        .single();
-      if (data && data.id) {
-        // User exists, update last_login
-        await supabase.from("users").update({ last_login: new Date().toISOString() }).eq("id", data.id);
-        window.location.href = "/#";
-      } else {
-        // User does not exist, redirect to register with pre-filled email
-        window.location.href = `/register?email=${encodeURIComponent(user.email ?? "")}`;
-      }
-    })();
-  }, [user]);
-
-  const login = async (email: string, password: string) => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) throw error;
-  };
-
-  const register = async (email: string, password: string) => {
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-    if (error) throw error;
-  };
 
   const logout = async () => {
     setLoading(true);
     await supabase.auth.signOut();
     setUser(null);
-    setLoading(false);
+    setSession(null);
+    setCredits(null);
     router.push("/login");
+    toast.success("Logged out successfully.");
+    setLoading(false);
+  };
+
+  const value = {
+    session,
+    user,
+    loading,
+    logout,
+    supabase,
+    credits,
+    refetchCredits,
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-} 
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}; 

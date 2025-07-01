@@ -2,22 +2,19 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { toast } from "react-hot-toast";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [showVerifiedToast, setShowVerifiedToast] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("verified") === "1") {
-      setShowVerifiedToast(true);
-      setTimeout(() => setShowVerifiedToast(false), 3500);
+      toast.success("Your email has been verified. You can now log in.");
     }
   }, [searchParams]);
 
@@ -26,29 +23,32 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setEmailTouched(true);
+
+    if (!isValidEmail(email)) {
+        toast.error("Please enter a valid email address.");
+        return;
+    }
+
     setLoading(true);
-    setError("");
-    setSuccess("");
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
+
     if (error) {
       if (error.message.toLowerCase().includes("invalid login credentials")) {
-        setError("Email not found, please register.");
+        toast.error("Invalid email or password.");
       } else if (error.message.toLowerCase().includes("email not confirmed")) {
-        setError("Please verify your email before logging in.");
+        toast.error("Please verify your email before logging in.");
       } else {
-        setError(error.message);
+        toast.error(error.message);
       }
       return;
     }
     if (data?.user && !data.user.email_confirmed_at) {
-      setError("Please verify your email before logging in.");
+      toast.error("Please verify your email before logging in.");
       return;
     }
-    setSuccess("Login successful! Redirecting...");
-    setTimeout(() => {
-      router.push("/#");
-    }, 1000);
+    toast.success("Login successful! Redirecting...");
+    router.push("/");
   };
 
   return (
@@ -85,12 +85,6 @@ export default function LoginPage() {
             <p className="text-center text-[#6e6e6e] text-sm mb-5">
               Secure access to your AI dashboard
             </p>
-
-            {showVerifiedToast && (
-              <div className="w-full mb-4 p-3 rounded-lg bg-green-50 text-green-800 text-center text-sm font-semibold border border-green-200 transition">
-                Your email has been verified. You can now log in.
-              </div>
-            )}
 
             <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
               <div className="flex flex-col gap-2">
@@ -133,21 +127,6 @@ export default function LoginPage() {
                   style={{ fontFamily: "inherit", fontSize: "1rem" }}
                 />
               </div>
-              {error && error === "Email not found, please register." ? (
-                <div className="text-red-500 text-sm text-center flex flex-col gap-2">
-                  {error}
-                  <button
-                    type="button"
-                    className="underline text-black font-semibold hover:opacity-80"
-                    onClick={() => router.push("/register")}
-                  >
-                    Go to Register
-                  </button>
-                </div>
-              ) : error && (
-                <div className="text-red-500 text-sm text-center">{error}</div>
-              )}
-              {success && <div className="text-green-600 text-sm text-center">{success}</div>}
               <button
                 type="submit"
                 className="w-full py-3 rounded-lg bg-black text-white font-bold text-base hover:bg-[#222] focus:ring-2 focus:ring-black focus:outline-none transition disabled:opacity-60 flex items-center justify-center mt-2"
