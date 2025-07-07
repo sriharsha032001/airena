@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
+import Loader from "@/components/ui/loader";
 
 interface RazorpayResponse {
   razorpay_payment_id: string;
@@ -132,15 +133,12 @@ const PricingPage = () => {
   };
   
   if (authLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-blue-500"></div>
-      </div>
-    );
+    return <Loader text="Loading pricing..." />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
+        {loadingPlan && <Loader text="Processing payment..." />}
         <main className="container mx-auto px-4 py-16">
             <div className="text-center mb-12">
                 <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-2">Choose Your Plan</h1>

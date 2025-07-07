@@ -1,5 +1,11 @@
-import { ResponseData } from "@/app/page";
-import { toast } from "react-hot-toast";
+"use client";
+import { ResponseData } from "@/app/query/page";
+import Image from 'next/image';
+import { Bot, Clipboard, Check } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { useState } from 'react';
+import TypingIndicator from './typing-indicator';
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ResponsesPanelProps {
   modelKey: "gemini" | "chatgpt";
@@ -7,63 +13,90 @@ interface ResponsesPanelProps {
   isLoading: boolean;
 }
 
-const MODEL_META = {
-  gemini: { label: "Gemini 2.5 Flash", color: "blue" },
-  chatgpt: { label: "GPT-4.1 mini", color: "purple" },
-};
+const ResponsesPanel = ({ modelKey, response, isLoading }: ResponsesPanelProps) => {
+  const [copied, setCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-const ShimmeringLoader = ({ color }: { color: string }) => (
-    <div className="absolute inset-0 bg-white bg-opacity-80 backdrop-blur-sm flex items-center justify-center p-4 rounded-xl z-10">
-        <div className="flex flex-col items-center gap-3">
-            <div className={`w-10 h-10 border-4 border-t-transparent rounded-full animate-spin border-${color}-500`}></div>
-            <p className={`text-sm font-semibold text-${color}-600`}>AI is thinking...</p>
-        </div>
-    </div>
-);
+  const handleCopy = () => {
+    if (response?.text) {
+      navigator.clipboard.writeText(response.text);
+      setCopied(true);
+      toast.success('Copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
-const CopyButton = ({ text }: { text: string }) => {
-    const handleCopy = () => {
-        navigator.clipboard.writeText(text);
-        toast.success("Response copied to clipboard!");
-    };
-    return (
-         <button
-            onClick={handleCopy}
-            className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all group"
-            title="Copy response"
-        >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-        </button>
-    )
-};
+  const modelDetails = {
+    gemini: { name: 'Gemini 2.5 Flash', icon: '/globe.svg' },
+    chatgpt: { name: 'GPT-4.1 mini', icon: '/window.svg' },
+  };
 
+  const { name, icon } = modelDetails[modelKey as keyof typeof modelDetails];
 
-export default function ResponsesPanel({ modelKey, response, isLoading }: ResponsesPanelProps) {
-  const meta = MODEL_META[modelKey];
+  const TRUNCATE_LENGTH = 300;
+  const shouldTruncate = response && response.text.length > TRUNCATE_LENGTH;
 
   return (
-    <div className="relative w-full h-full min-h-[250px] flex flex-col">
-       {isLoading && <ShimmeringLoader color={meta.color} />}
-      <div className="w-full h-full bg-white border border-gray-200 rounded-2xl shadow-lg p-6 flex flex-col transition-shadow hover:shadow-xl">
-        <div className="flex items-center gap-3 mb-3">
-          <span className={`px-3 py-1 text-sm font-semibold rounded-full bg-${meta.color}-100 text-${meta.color}-800`}>
-            {meta.label}
-          </span>
-           {response && (
-             <span className="text-xs text-gray-400">{response.time} ms</span>
-           )}
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col h-full">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center space-x-3">
+            <Image src={icon} alt={`${name} logo`} width={24} height={24} />
+            <h2 className="text-lg font-bold text-gray-800">{name}</h2>
         </div>
-        
-        <div className="flex-grow overflow-y-auto text-gray-800 whitespace-pre-line">
-            {response ? (
-                response.text ? response.text : <p className="text-red-500">The model returned an empty response.</p>
-            ) : (
-                <p className="text-gray-400">Waiting for query...</p>
-            )}
-        </div>
-       
-        {response && response.text && <CopyButton text={response.text} />}
+        {response && (
+           <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">{response.time.toFixed(2)}s</span>
+            <button 
+              onClick={handleCopy} 
+              className="text-gray-500 hover:text-gray-800 transition-colors p-1 rounded-md"
+              aria-label="Copy response"
+            >
+              {copied ? <Check size={16} className="text-green-500" /> : <Clipboard size={16} />}
+            </button>
+           </div>
+        )}
       </div>
+
+      <AnimatePresence initial={false}>
+        <motion.div 
+            key={isExpanded ? 'expanded' : 'collapsed'}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="text-gray-700 whitespace-pre-line overflow-hidden prose prose-sm max-w-none"
+        >
+            {isLoading ? (
+            <div className="flex items-center justify-center h-full min-h-[100px]">
+                <TypingIndicator />
+            </div>
+            ) : response ? (
+                <div className={isExpanded ? "max-h-96 overflow-y-auto pr-2" : ""}>
+                    {shouldTruncate && !isExpanded
+                        ? `${response.text.substring(0, TRUNCATE_LENGTH)}...`
+                        : response.text
+                    }
+                </div>
+            ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 min-h-[100px]">
+                <Bot size={32} className="mb-2" />
+                <p>AI response will appear here.</p>
+            </div>
+            )}
+        </motion.div>
+      </AnimatePresence>
+      
+      {shouldTruncate && (
+          <button 
+            onClick={() => setIsExpanded(!isExpanded)} 
+            className="mt-4 text-sm font-semibold text-blue-600 hover:text-blue-800 self-start"
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? "Show Less" : "Show More"}
+          </button>
+      )}
     </div>
   );
-} 
+};
+
+export default ResponsesPanel; 

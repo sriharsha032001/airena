@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const systemPrompt = "You are a helpful assistant. Keep your response clear, structured, and strictly under 500 characters.";
     const fullPrompt = `${systemPrompt}\n${query}`;
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-06-17" });
     const result = await model.generateContent(fullPrompt);
     const response = result.response;
     const text = response.text();
@@ -34,4 +34,4 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: errorMessage, source: "gemini" }, { status: 500 });
   }
-} 
+}

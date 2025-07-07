@@ -2,7 +2,7 @@
 import { Dispatch, SetStateAction } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { toast } from "react-hot-toast";
-import { ResponseData } from "@/app/page";
+import { ResponseData } from "@/app/query/page";
 
 // 1️⃣ Define the type
 interface ComparisonVerdict {
@@ -36,6 +36,7 @@ export default function QueryForm({
   loadingModels,
 }: QueryFormProps) {
   const { user, credits, refetchCredits } = useAuth();
+  const hasNoCredits = credits ? credits.credits <= 0 : false;
 
   const MODELS = [
     { key: "gemini", label: "Gemini 2.5 Flash", cost: 1 },
@@ -85,7 +86,7 @@ export default function QueryForm({
     const finalCost = isLongQuery ? cost * 2 : cost;
     
     if (credits.credits < finalCost) {
-      toast.error("Not enough credits. Please purchase more.");
+      toast.error("You don't have enough credits for this query. Please top up.");
       setLoadingModels([]);
       return;
     }
@@ -175,14 +176,14 @@ export default function QueryForm({
           value={query}
           onChange={e => setQuery(e.target.value)}
           className="w-full h-40 min-h-[10rem] px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 overflow-y-auto resize-none transition-all duration-200 placeholder:text-gray-400"
-          placeholder="e.g., Explain the theory of relativity in simple terms"
-          disabled={loadingModels.length > 0}
+          placeholder={hasNoCredits ? "You are out of credits. Please top up to continue." : "e.g., Explain the theory of relativity in simple terms"}
+          disabled={loadingModels.length > 0 || hasNoCredits}
         />
         <button
           type="submit"
           className="absolute bottom-3 right-3 flex items-center justify-center w-12 h-12 rounded-full bg-gray-800 text-white text-2xl font-bold shadow-lg hover:bg-blue-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 group disabled:bg-gray-400 disabled:cursor-not-allowed"
           aria-label="Send query"
-          disabled={loadingModels.length > 0 || selectedModels.length === 0 || !query.trim()}
+          disabled={loadingModels.length > 0 || selectedModels.length === 0 || !query.trim() || hasNoCredits}
         >
           <span className="transform group-hover:translate-x-0.5 transition-transform duration-150">→</span>
         </button>
@@ -190,12 +191,13 @@ export default function QueryForm({
       <div className="mb-1 font-semibold text-gray-800">Select models to compare:</div>
       <div className="flex gap-4 flex-wrap mb-2">
         {MODELS.map((model) => (
-          <label key={model.key} className="flex items-center gap-2 cursor-pointer select-none text-gray-700 font-medium group">
+          <label key={model.key} className={`flex items-center gap-2 select-none text-gray-700 font-medium group ${hasNoCredits ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
             <input
               type="checkbox"
               checked={selectedModels.includes(model.key)}
               onChange={() => toggleModel(model.key)}
               className="accent-blue-600 w-5 h-5 rounded-md border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all"
+              disabled={hasNoCredits}
             />
             <span className="group-hover:text-black transition-colors">{model.label}</span>
           </label>

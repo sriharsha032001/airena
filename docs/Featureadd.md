@@ -1,79 +1,34 @@
-## ✨ UI Enhancement Prompt – Main Page (After Login) for AuraI
+# Task: Implement Expiring Context Memory for User Sessions
 
-Please enhance the main page UI that appears after a successful login. Use the following style and UX guidelines:
+## Purpose:
+- Store each user's chat or sequence context for up to 1 hour from last interaction.
+- After 1 hour of inactivity, automatically delete/ignore their context.
+- Ensures efficient use of DB/memory and respects user privacy.
 
----
+## Requirements:
 
-### ✅ Layout Goals:
-- A **two-section layout**:
-  - **Left panel**: Sidebar (optional) for navigation (e.g., "New Query", "History", "Settings")
-  - **Main area**: Query input, model selection, responses
+1. **Session Data Structure**
+   - Store per-user session context (chat history, sequence, etc.) in a fast-access store:
+     - Options: Redis (best) or in-memory Map (for simple deployments).
 
-### 🎨 Style Guide:
-- **Font**: Use `"Open Sans"` from Google Fonts (already imported)
-- **Color Theme**:
-  - Background: `#FFFFFF` (pure white)
-  - Primary text: `#000000` (black)
-  - Accent: Use soft gray `#F5F5F5` or deep blue `#1A1A1A` if needed
-- **No emojis** – keep it clean and professional
+2. **Auto-Expiry Logic**
+   - Each session/context record must have a `last_active` timestamp.
+   - On every new request:
+     - If `now - last_active > 1 hour`, clear that user's session/context before processing.
+     - Else, use current context as input to AI and update `last_active`.
 
----
+3. **How To Use**
+   - When user sends a query, fetch context.
+   - If context exists and is not expired, include it in the AI prompt.
+   - If expired, start fresh context.
+   - After responding, update `last_active` and store new context.
 
-### 🧠 Features:
-1. **Query Input Box**:
-   - Styled as a wide search bar
-   - Add subtle box-shadow, padding, border-radius
-   - Support `Enter` key to trigger query
+4. **Storage Options**
+   - **Best:** Use Redis with TTL for automatic expiry (`set key value EX 3600`).
+   - **Alternative:** Store in DB with `last_active` and run cleanup job every hour.
+   - **Fallback:** In-memory JS object if on a single-server setup.
 
-2. **Model Selection UI**:
-   - Styled checkboxes or toggle buttons
-   - Show model names clearly (ChatGPT, Claude, Gemini)
-   - Add tooltips like “Fast”, “Creative”, etc.
+5. **Privacy/Security**
+   - No sensitive data should persist after expiry.
 
-3. **Submit Button**:
-   - Prominent, rounded, modern
-   - Positioned right of the query box
-   - Hover animation and disabled state
-
-4. **Response Cards**:
-   - Each model output shown in a **card** with:
-     - Model name at top
-     - Text response
-     - Response time in bottom right
-     - "Copy" icon button
-   - Use smooth fade-in loaders while fetching
-
-5. **Navbar**:
-   - Top navbar with:
-     - Logo/Name ("AuraI")
-     - Session user name & avatar (if available)
-     - Logout button (clean & aligned to right)
-
-6. **Footer**:
-   - Sticky footer with soft tone
-   - Add: “Built with ❤️ by AuraI Team” and GitHub link
-
-7. **Loaders & Animations**:
-   - Add a **typewriter effect** or pulsing dots loader while waiting for model response
-   - Fade-in animation for response blocks
-
-8. **Responsive Design**:
-   - On mobile: Stack query input, model selection, and responses vertically
-   - Use CSS grid or flex layout
-
----
-
-### 📌 Optimization:
-- Minimize DOM nesting
-- Use clean component-based structure
-- Avoid inline styles; prefer Tailwind or CSS modules
-
----
-
-### 🔁 Flow:
-- After login, user sees:
-  - Greeting ("Welcome back, [username]!")
-  - Clean input flow with query + models + responses
-  - Previous sessions optionally shown below
-
-Implement these UI changes now and break the main sections into modular components if needed.
+## Example (Pseudocode):

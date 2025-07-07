@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, SupabaseClient, User } from "@supabase/auth-helpers-nextjs";
 import { supabase } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { toast } from "react-hot-toast";
 
 interface UserCredits {
@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState<UserCredits | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   const refetchCredits = async () => {
     if (user) {
@@ -38,6 +39,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCredits(data || null);
     }
   };
+
+  useEffect(() => {
+    const protectedRoutes = ['/query', '/pricing'];
+    const isProtectedRoute = protectedRoutes.includes(pathname);
+
+    if (!loading && !user && isProtectedRoute) {
+      toast.error("Your session has expired. Please log in again.");
+      router.push('/login');
+    }
+  }, [user, loading, pathname, router]);
 
   useEffect(() => {
     const fetchCredits = async (userId: string) => {
@@ -116,14 +127,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = async () => {
-    setLoading(true);
     await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setCredits(null);
+    // The onAuthStateChange listener will handle setting user/session/credits to null.
+    // This is the single source of truth.
     router.push("/login");
     toast.success("Logged out successfully.");
-    setLoading(false);
   };
 
   const value = {
