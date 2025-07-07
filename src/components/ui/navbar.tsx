@@ -1,5 +1,6 @@
 'use client';
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/components/providers/auth-provider";
 // import LogoutButton from "./logout-button";
 import { useEffect, useState, useRef } from "react";
@@ -81,7 +82,7 @@ export default function Navbar() {
                 aria-label="User menu"
               >
                 {authLoading ? <SkeletonLoader count={1} className="w-8 h-8 rounded-full" /> : profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-[#e0e0e0]" />
+                  <Image src={profile.avatar_url} alt="avatar" width={32} height={32} className="w-8 h-8 rounded-full object-cover border border-[#e0e0e0]" />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-[#e0e0e0] flex items-center justify-center text-lg font-bold text-black">
                     {profile?.name ? profile.name[0] : (user.email ?? '')[0]}
