@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4-turbo",
+        model: "gpt-4.1-mini-2025-04-14",
         messages: [
           { role: "system", content: "You are a helpful assistant. Keep your response clear, structured, and strictly under 500 characters." },
           { role: "user", content: finalPrompt },
@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
     if (!answer) {
       console.warn("[ChatGPT] No usable answer in response:", data);
     }
-    if (answer.length > 500) {
-      answer = answer.slice(0, 500);
+    if (answer.length > 7000) {
+      answer = answer.slice(0, 7000);
     }
     console.log(`[ChatGPT] Response length: ${answer.length} characters`);
     return NextResponse.json({ answer: answer || "ChatGPT did not return a response.", time: t1 - t0 });

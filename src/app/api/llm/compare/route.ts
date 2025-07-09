@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4-turbo",
+        model: "gpt-4.1-mini",
         messages: [
           { role: "system", content: "You are an expert AI evaluator." },
           { role: "user", content: comparePrompt },

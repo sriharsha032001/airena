@@ -12,15 +12,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Query is required", source: "gemini" }, { status: 400 });
     }
     // Prepend system prompt to user query
-    const systemPrompt = "You are a helpful assistant. Keep your response clear, structured, and strictly under 500 characters.";
+    const systemPrompt = "You are a helpful assistant. Keep your response clear, structured, and strictly under 7000 characters.";
     const fullPrompt = `${systemPrompt}\n${query}`;
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-06-17" });
     const result = await model.generateContent(fullPrompt);
     const response = result.response;
     const text = response.text();
-    if (text.length > 500) {
-      return NextResponse.json({ error: "Response length exceeds 500 characters", source: "gemini" }, { status: 400 });
+    if (text.length > 7000) {
+      return NextResponse.json({ error: "Response length exceeds 7000 characters", source: "gemini" }, { status: 400 });
     }
     console.log(`[Gemini] Response length: ${text.length} characters`);
     return NextResponse.json({ answer: text, source: "gemini" });
