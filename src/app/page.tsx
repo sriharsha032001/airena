@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Star, Shield, Zap, Clock, Wallet, Users, MessageSquare } from 'lucide-react';
-import Loader from "@/components/ui/loader";
 
 export default function Home() {
   const { loading: authLoading, user } = useAuth();
@@ -17,7 +16,11 @@ export default function Home() {
   }, [authLoading, user, router]);
 
   if (authLoading || user) {
-    return <Loader text="Loading..." />;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
   }
 
   return <LandingPage />;

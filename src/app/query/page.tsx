@@ -6,6 +6,7 @@ import QueryForm from "@/components/forms/query-form";
 import ResponsesPanel from "@/components/ui/responses-panel";
 import { toast } from "react-hot-toast";
 import Loader from "@/components/ui/loader";
+import { Copy, Trash2, GitCompareArrows } from "lucide-react";
 
 export interface ResponseData {
   text: string;
@@ -32,6 +33,20 @@ export default function QueryPage() {
       router.push("/login");
     }
   }, [user, authLoading, router]);
+
+  const handleCopyAll = () => {
+    let textToCopy = "";
+    if (geminiResponse) {
+      textToCopy += `--- Gemini 2.5 Flash ---\n${geminiResponse.text}\n\n`;
+    }
+    if (chatgptResponse) {
+      textToCopy += `--- GPT-4.1 mini ---\n${chatgptResponse.text}`;
+    }
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy.trim());
+      toast.success("Copied all responses to clipboard!");
+    }
+  };
 
   const handleClearAll = () => {
     setQuery("");
@@ -89,7 +104,7 @@ export default function QueryPage() {
 
        <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-x-8 gap-y-10">
         
-        <div className="lg:col-span-4 lg:sticky lg:top-24 h-fit">
+        <div className="lg:col-span-3 lg:sticky lg:top-24 h-fit">
           <QueryForm
             query={query}
             setQuery={setQuery}
@@ -103,7 +118,7 @@ export default function QueryPage() {
           />
         </div>
         
-        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        <div className="lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
             <ResponsesPanel 
                 modelKey="gemini" 
                 response={geminiResponse} 
@@ -118,18 +133,27 @@ export default function QueryPage() {
       </div>
 
        {showActionButtons && (
-        <div className="w-full flex justify-center items-center gap-4 mt-10">
+        <div className="w-full max-w-4xl mx-auto flex justify-center items-center gap-3 mt-10 p-2 rounded-full bg-white border border-gray-200 shadow-sm">
           <button
-            className="px-6 py-3 rounded-lg bg-gray-800 text-white font-semibold shadow-sm hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-60"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gray-800 text-white font-semibold shadow-sm hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-60"
             onClick={handleCompare}
             disabled={comparisonVerdict?.verdict === 'loading' || !geminiResponse || !chatgptResponse}
           >
-            {comparisonVerdict?.verdict === 'loading' ? 'Comparing...' : 'Compare Results'}
+            <GitCompareArrows size={16} />
+            {comparisonVerdict?.verdict === 'loading' ? 'Comparing...' : 'Compare'}
           </button>
           <button
-            className="px-6 py-3 rounded-lg bg-white text-gray-700 font-semibold border border-gray-300 shadow-sm hover:bg-gray-100 transition-all active:scale-95"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-gray-700 font-semibold border border-gray-200/0 hover:bg-gray-100 transition-all active:scale-95"
+            onClick={handleCopyAll}
+          >
+            <Copy size={16} />
+            Copy All
+          </button>
+          <button
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-gray-700 font-semibold border border-gray-200/0 hover:bg-gray-100 transition-all active:scale-95"
             onClick={handleClearAll}
           >
+            <Trash2 size={16} />
             Clear All
           </button>
         </div>

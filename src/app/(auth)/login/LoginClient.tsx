@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
-import Loader from "@/components/ui/loader";
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
@@ -84,7 +83,11 @@ export default function LoginPage() {
 
 				{/* Right Login Side */}
 				<div className="flex-1 flex flex-col justify-center items-center px-8 py-12 bg-white relative">
-					{loading && <Loader text="Signing in..." />}
+					{loading && (
+            <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
+              <div className="text-lg font-semibold">Signing in...</div>
+            </div>
+          )}
 					<div className="w-full max-w-sm mx-auto rounded-2xl shadow-md border border-[#e0e0e0] bg-white p-8">
 						<h2 className="text-2xl font-bold text-center mb-1 text-black">Sign in to AIrena</h2>
 						<p className="text-center text-[#6e6e6e] text-sm mb-5">

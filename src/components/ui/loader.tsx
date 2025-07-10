@@ -1,24 +1,23 @@
-"use client";
-import { motion } from "framer-motion";
+const Loader = ({ text = "Loading..." }: { text?: string }) => {
+  return (
+    <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
+      <div className="flex items-center gap-2">
+        <svg
+          className="animate-spin"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="12" cy="12" r="10" strokeOpacity=".2" />
+          <path d="M22 12a10 10 0 0 1-10 10" />
+        </svg>
+        <span className="text-lg font-semibold">{text}</span>
+      </div>
+    </div>
+  );
+};
 
-const Loader = ({ text = "Loading..." }: { text?: string }) => (
-  <div 
-    className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm"
-    aria-busy="true"
-    aria-live="polite"
-    aria-label={text}
-  >
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      transition={{ duration: 0.3 }}
-      className="flex items-center space-x-4 rounded-lg bg-white p-4 shadow-xl"
-    >
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-dashed border-blue-600"></div>
-      <span className="text-lg font-semibold text-gray-800">{text}</span>
-    </motion.div>
-  </div>
-);
-
-export default Loader; 
+export default Loader;

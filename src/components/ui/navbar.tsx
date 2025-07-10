@@ -5,7 +5,6 @@ import { useAuth } from "@/components/providers/auth-provider";
 // import LogoutButton from "./logout-button";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
-import SkeletonLoader from "./skeleton-loader";
 
 export default function Navbar() {
   const { user, logout, credits, loading: authLoading } = useAuth();
@@ -66,7 +65,7 @@ export default function Navbar() {
         ) : (
           <>
             {authLoading ? (
-               <div className="hidden sm:block"><SkeletonLoader count={1} className="w-24 h-8" /></div>
+               <div className="hidden sm:block w-24 h-8 bg-gray-200 rounded-md animate-pulse"></div>
             ) : credits !== null && (
               <div className="hidden sm:flex items-center gap-2 text-sm font-semibold" title="Each query uses credits based on the model.">
                 <span className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700">
@@ -81,7 +80,7 @@ export default function Navbar() {
                 onClick={() => setDropdownOpen((v) => !v)}
                 aria-label="User menu"
               >
-                {authLoading ? <SkeletonLoader count={1} className="w-8 h-8 rounded-full" /> : profile?.avatar_url ? (
+                {authLoading ? <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div> : profile?.avatar_url ? (
                   <Image src={profile.avatar_url} alt="avatar" width={32} height={32} className="w-8 h-8 rounded-full object-cover border border-[#e0e0e0]" />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-[#e0e0e0] flex items-center justify-center text-lg font-bold text-black">
@@ -89,7 +88,7 @@ export default function Navbar() {
                   </div>
                 )}
                 <span className="hidden sm:block font-semibold text-black text-base max-w-[120px] truncate">
-                    {authLoading ? <SkeletonLoader count={1} className="w-20 h-5" /> : profile?.name || (user.email ?? '')}
+                    {authLoading ? <div className="w-20 h-5 bg-gray-200 rounded-md animate-pulse"></div> : profile?.name || (user.email ?? '')}
                 </span>
                 <svg className="w-4 h-4 ml-1 text-[#888]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
               </button>
