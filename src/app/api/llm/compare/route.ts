@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function noStore(res: NextResponse) {
+  res.headers.set('Cache-Control', 'no-store');
+  return res;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { responses, prompt } = await req.json();
     if (!responses || !Array.isArray(responses) || responses.length < 2) {
-      return NextResponse.json({ error: "At least two responses required for comparison." }, { status: 400 });
+      return noStore(NextResponse.json({ error: "At least two responses required for comparison." }, { status: 400 }));
     }
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "OpenAI API key not set." }, { status: 500 });
+      return noStore(NextResponse.json({ error: "OpenAI API key not set." }, { status: 500 }));
     }
     // Build the comparison prompt
     let comparePrompt = `Compare the following AI responses to the same user query. Highlight which one is more helpful, accurate, and well-structured. Then explain why.`;
@@ -37,7 +42,7 @@ export async function POST(req: NextRequest) {
     });
     const data = await openaiRes.json();
     if (!openaiRes.ok) {
-      return NextResponse.json({ error: data.error?.message || "OpenAI error" }, { status: 500 });
+      return noStore(NextResponse.json({ error: data.error?.message || "OpenAI error" }, { status: 500 }));
     }
     // Try to extract a structured verdict/analysis from the response
     let verdict = "";
@@ -54,9 +59,9 @@ export async function POST(req: NextRequest) {
       verdict = lines[0] || "";
       analysis = lines.slice(1).join("\n");
     }
-    return NextResponse.json({ verdict, analysis, raw: text });
+    return noStore(NextResponse.json({ verdict, analysis, raw: text }));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return noStore(NextResponse.json({ error: message }, { status: 500 }));
   }
 } 

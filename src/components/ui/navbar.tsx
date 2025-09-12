@@ -7,7 +7,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 export default function Navbar() {
-  const { user, logout, credits, loading: authLoading } = useAuth();
+  const { user, logout, credits, creditsLoading, creditsError, refetchCredits, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<{ name?: string; avatar_url?: string } | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -64,15 +64,22 @@ export default function Navbar() {
           </Link>
         ) : (
           <>
-            {authLoading ? (
-               <div className="hidden sm:block w-24 h-8 bg-gray-200 rounded-md animate-pulse"></div>
-            ) : credits !== null && (
+            {creditsLoading ? (
+              <div className="hidden sm:block w-24 h-8 bg-gray-200 rounded-md animate-pulse"></div>
+            ) : creditsError ? (
+              <div className="hidden sm:flex items-center gap-2 text-sm font-semibold text-red-500">
+                <span className="px-3 py-1.5 rounded-full bg-red-100 text-red-700">
+                  Error loading credits
+                </span>
+                <button onClick={refetchCredits} className="text-xs underline text-blue-600 hover:text-blue-800">Retry</button>
+              </div>
+            ) : credits !== null ? (
               <div className="hidden sm:flex items-center gap-2 text-sm font-semibold" title="Each query uses credits based on the model.">
                 <span className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700">
                   Credits: <span className="font-bold text-blue-600">{credits.credits}</span>
                 </span>
               </div>
-            )}
+            ) : null}
             <Link href="/pricing" className="px-4 py-2 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition-all">Pricing</Link>
             <div className="relative" ref={dropdownRef}>
               <button

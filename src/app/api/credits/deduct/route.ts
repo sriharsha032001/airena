@@ -7,12 +7,17 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+function noStore(res: NextResponse) {
+  res.headers.set('Cache-Control', 'no-store');
+  return res;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { userId, cost } = await req.json();
 
     if (!userId || !cost) {
-      return NextResponse.json({ error: "Missing required parameters" }, { status: 400 });
+      return noStore(NextResponse.json({ error: "Missing required parameters" }, { status: 400 }));
     }
 
     // Use RPC to call a Postgres function for atomic deduction
@@ -23,20 +28,20 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("RPC Error:", error.message);
-      return NextResponse.json({ error: "Failed to process credits." }, { status: 500 });
+      return noStore(NextResponse.json({ error: "Failed to process credits." }, { status: 500 }));
     }
 
     if (!data) {
       // This means the user did not have enough credits
-      return NextResponse.json({ error: "Not enough credits. Please purchase more from Pricing." }, { status: 402 }); // 402 Payment Required
+      return noStore(NextResponse.json({ error: "Not enough credits. Please purchase more from Pricing." }, { status: 402 })); // 402 Payment Required
     }
 
     // Success
-    return NextResponse.json({ success: true });
+    return noStore(NextResponse.json({ success: true }));
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
     console.error("Deduct API Error:", errorMessage);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return noStore(NextResponse.json({ error: "Internal Server Error" }, { status: 500 }));
   }
 } 
