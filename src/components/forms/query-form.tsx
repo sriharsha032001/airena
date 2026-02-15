@@ -2,16 +2,16 @@
 import { Dispatch, SetStateAction } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { toast } from "react-hot-toast";
-import { ResponseData } from "@/app/page";
+import { ResponseData } from "@/app/query/page";
+import { motion } from "framer-motion";
+import Image from "next/image";
 
-// 1️⃣ Define the type
 interface ComparisonVerdict {
   verdict: string;
   analysis: string;
   error?: string;
 }
 
-// 2️⃣ Use the type in props
 interface QueryFormProps {
   query: string;
   setQuery: (q: string) => void;
@@ -36,13 +36,15 @@ export default function QueryForm({
   loadingModels,
 }: QueryFormProps) {
   const { user, credits, refetchCredits } = useAuth();
+  const hasNoCredits = credits ? credits.credits <= 0 : false;
 
   const MODELS = [
-    { key: "gemini", label: "Gemini 2.5 Flash", cost: 1 },
-    { key: "chatgpt", label: "GPT-4.1 mini", cost: 2 },
+    { key: "gemini", label: "Gemini 2.5", cost: 1, icon: "/globe.svg" },
+    { key: "chatgpt", label: "GPT-4.1", cost: 2, icon: "/window.svg" },
   ];
 
   const toggleModel = (key: string) => {
+    if (hasNoCredits) return;
     setSelectedModels(
       selectedModels.includes(key)
         ? selectedModels.filter((k) => k !== key)
@@ -85,7 +87,7 @@ export default function QueryForm({
     const finalCost = isLongQuery ? cost * 2 : cost;
     
     if (credits.credits < finalCost) {
-      toast.error("Not enough credits. Please purchase more.");
+      toast.error("You don't have enough credits for this query. Please top up.");
       setLoadingModels([]);
       return;
     }
@@ -162,45 +164,63 @@ export default function QueryForm({
   };
 
   return (
-    <form
+    <motion.form
       onSubmit={handleSubmit}
-      className="w-full bg-white border border-gray-200 rounded-2xl shadow-lg flex flex-col gap-4 p-6 transition-shadow hover:shadow-xl"
+      className="w-full bg-white border border-gray-200/80 rounded-2xl shadow-lg flex flex-col p-6 transition-shadow hover:shadow-xl h-full"
+      layout
     >
-      <label className="block text-lg font-semibold mb-1 text-gray-800" htmlFor="query">
-        Enter your query
-      </label>
-      <div className="relative flex flex-col">
+      <div className="relative group">
+        <motion.div 
+          className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl blur-sm opacity-0 group-focus-within:opacity-50 transition-opacity duration-300"
+          aria-hidden="true"
+        />
         <textarea
           id="query"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          className="w-full h-40 min-h-[10rem] px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 overflow-y-auto resize-none transition-all duration-200 placeholder:text-gray-400"
+          className="relative w-full h-48 min-h-[12rem] px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-800 bg-gray-50/80 focus:outline-none focus:ring-0 focus:border-blue-500 overflow-y-auto resize-none transition-all duration-200 placeholder:text-transparent peer"
           placeholder="e.g., Explain the theory of relativity in simple terms"
-          disabled={loadingModels.length > 0}
+          disabled={loadingModels.length > 0 || hasNoCredits}
+          required
         />
+        <label
+          htmlFor="query"
+          className="absolute left-4 top-3.5 text-gray-500 transition-all duration-300 transform peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-5 peer-focus:text-blue-600 peer-focus:px-1 peer-focus:bg-white scale-75 -translate-y-5 bg-white px-1"
+        >
+          {hasNoCredits ? "You are out of credits" : "Enter your query"}
+        </label>
+      </div>
+      
+      <div className="my-5">
+        <div className="mb-3 font-semibold text-gray-800 text-sm">Select models</div>
+        <div className="flex gap-3 flex-wrap">
+          {MODELS.map((model) => (
+            <motion.div
+              key={model.key}
+              onClick={() => toggleModel(model.key)}
+              className={`flex items-center gap-2 select-none rounded-full px-4 py-2 border text-sm font-medium transition-all ${
+                selectedModels.includes(model.key)
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+              } ${hasNoCredits ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+              whileTap={{ scale: hasNoCredits ? 1 : 0.95 }}
+            >
+              <Image src={model.icon} alt={`${model.label} icon`} width={16} height={16} />
+              <span>{model.label}</span>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+      
+      <div className="mt-auto pt-4 border-t border-gray-200/80">
         <button
           type="submit"
-          className="absolute bottom-3 right-3 flex items-center justify-center w-12 h-12 rounded-full bg-gray-800 text-white text-2xl font-bold shadow-lg hover:bg-blue-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 group disabled:bg-gray-400 disabled:cursor-not-allowed"
-          aria-label="Send query"
-          disabled={loadingModels.length > 0 || selectedModels.length === 0 || !query.trim()}
+          className="w-full flex items-center justify-center py-3 rounded-lg bg-gray-800 text-white text-base font-bold shadow-md hover:bg-blue-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled={loadingModels.length > 0 || selectedModels.length === 0 || !query.trim() || hasNoCredits}
         >
-          <span className="transform group-hover:translate-x-0.5 transition-transform duration-150">→</span>
+          {loadingModels.length > 0 ? "Generating..." : "Run Query"}
         </button>
       </div>
-      <div className="mb-1 font-semibold text-gray-800">Select models to compare:</div>
-      <div className="flex gap-4 flex-wrap mb-2">
-        {MODELS.map((model) => (
-          <label key={model.key} className="flex items-center gap-2 cursor-pointer select-none text-gray-700 font-medium group">
-            <input
-              type="checkbox"
-              checked={selectedModels.includes(model.key)}
-              onChange={() => toggleModel(model.key)}
-              className="accent-blue-600 w-5 h-5 rounded-md border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all"
-            />
-            <span className="group-hover:text-black transition-colors">{model.label}</span>
-          </label>
-        ))}
-      </div>
-    </form>
+    </motion.form>
   );
 }

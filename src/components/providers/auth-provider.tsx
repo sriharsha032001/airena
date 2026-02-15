@@ -2,8 +2,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, SupabaseClient, User } from "@supabase/auth-helpers-nextjs";
 import { supabase } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { toast } from "react-hot-toast";
+import useSWR from "swr";
 
 interface UserCredits {
     credits: number;
@@ -16,58 +17,65 @@ interface AuthContextType {
   logout: () => Promise<void>;
   supabase: SupabaseClient;
   credits: UserCredits | null;
+  creditsLoading: boolean;
+  creditsError: unknown;
   refetchCredits: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const fetchCredits = async (userId: string | undefined | null) => {
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from("user_credits")
+    .select("credits")
+    .eq("id", userId)
+    .single();
+  if (error && error.code !== 'PGRST116') {
+    throw new Error("Unable to fetch credits.");
+  }
+  return data || null;
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [credits, setCredits] = useState<UserCredits | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
-  const refetchCredits = async () => {
-    if (user) {
-        const { data } = await supabase
-            .from("user_credits")
-            .select("credits")
-            .eq("id", user.id)
-            .single();
-        setCredits(data || null);
-    }
+  // SWR for credits
+  const {
+    data: credits,
+    error: creditsError,
+    isLoading: creditsLoading,
+    mutate: mutateCredits
+  } = useSWR(user ? ["user_credits", user.id] : null, () => fetchCredits(user?.id), {
+    revalidateOnFocus: true,
+    shouldRetryOnError: false,
+  });
+
+  const refetchCredits = () => {
+    mutateCredits();
   };
 
   useEffect(() => {
-    const fetchCredits = async (userId: string) => {
-        const { data, error } = await supabase
-            .from("user_credits")
-            .select("credits")
-            .eq("id", userId)
-            .single();
-        
-        if (error && error.code !== 'PGRST116') {
-            toast.error("Unable to fetch credits.");
-            setCredits(null);
-        } else if (data) {
-            setCredits(data || null);
-        }
-    };
+    const protectedRoutes = ['/query', '/pricing'];
+    const isProtectedRoute = protectedRoutes.includes(pathname);
 
+    if (!loading && !user && isProtectedRoute) {
+      toast.error("Your session has expired. Please log in again.");
+      router.push('/login');
+    }
+  }, [user, loading, pathname, router]);
+
+  useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const currentUser = session?.user ?? null;
         setSession(session);
         setUser(currentUser);
         setLoading(false);
-
-        if (currentUser) {
-            fetchCredits(currentUser.id);
-        } else {
-            setCredits(null);
-        }
-
         if (event === "SIGNED_IN" && currentUser) {
           // Check if user credits exist
           const { data: creditsData, error: selectError } = await supabase
@@ -75,8 +83,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .select("id")
             .eq("id", currentUser.id)
             .single();
-
-          // If no credits exist and there's no error other than "not found"
           if (!creditsData && (!selectError || selectError.code === 'PGRST116')) {
             // Grant welcome credits
             const { error: insertError } = await supabase
@@ -87,14 +93,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 credits: 20, // Welcome credits
                 last_updated: new Date().toISOString(),
               });
-            
             if (insertError) {
               toast.error("Failed to grant welcome credits, please try again.");
             } else {
               toast.success("Welcome! We've added 20 free credits to your account.");
-              fetchCredits(currentUser.id); // Re-fetch credits after granting
+              mutateCredits();
             }
           }
+        }
+        if (!currentUser) {
+          mutateCredits(null, false); // Clear credits on logout
         }
       }
     );
@@ -105,9 +113,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser);
       setSession(session);
       setLoading(false);
-      if (currentUser) {
-        fetchCredits(currentUser.id);
-      }
     });
 
     return () => {
@@ -116,14 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = async () => {
-    setLoading(true);
     await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setCredits(null);
+    // The onAuthStateChange listener will handle setting user/session to null and clearing credits.
     router.push("/login");
     toast.success("Logged out successfully.");
-    setLoading(false);
   };
 
   const value = {
@@ -132,7 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     logout,
     supabase,
-    credits,
+    credits: credits ?? null,
+    creditsLoading,
+    creditsError,
     refetchCredits,
   };
 

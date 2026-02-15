@@ -1,15 +1,17 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { toast } from "react-hot-toast";
+import Loader from "@/components/ui/loader";
 
-export default function RegisterPage() {
+const RegisterPage = () => {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const supabase = createClientComponentClient();
 
   const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
   const isStrongPassword = (val: string) => val.length >= 8;
@@ -56,9 +58,13 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4" style={{ fontFamily: 'Open Sans, ui-sans-serif, sans-serif' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4 relative" style={{ fontFamily: 'Open Sans, ui-sans-serif, sans-serif' }}>
+      {loading && <Loader text="Creating your account..." />}
       <main className="w-full max-w-sm flex flex-col items-center justify-center flex-1">
         <h1 className="text-2xl font-bold text-center mb-2 text-black">Create your account</h1>
+        <p className="text-sm text-center text-[#6e6e6e] mb-5">
+          Already have an account? <a href="/login" className="text-black font-semibold underline hover:opacity-80">Login</a>
+        </p>
         <form onSubmit={handleRegister} className="w-full flex flex-col gap-4 mt-6">
           <div className="flex flex-col gap-2">
             <label htmlFor="name" className="text-sm font-semibold text-black">Full Name</label>
@@ -115,13 +121,12 @@ export default function RegisterPage() {
             {loading ? "Registering..." : "Register"}
           </button>
         </form>
-        <p className="mt-4 text-center text-sm text-[#666]">
-          Already have an account? <a href="/login" className="text-black font-semibold underline hover:opacity-80">Login</a>
-        </p>
       </main>
       <footer className="w-full text-center text-xs text-[#bbb] mt-12 mb-2">
         © 2025 BrandName. All rights reserved.
       </footer>
     </div>
   );
-} 
+}
+
+export default RegisterPage; 
