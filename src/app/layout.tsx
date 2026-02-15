@@ -6,11 +6,17 @@ import { TimelineProvider } from "@/components/providers/timeline-provider";
 import Navbar from "@/components/ui/navbar";
 import Footer from "@/components/ui/footer";
 
-const openSans = Open_Sans({ subsets: ["latin"], weight: ["400", "600", "700"],variable: "--font-open-sans", });
+const openSans = Open_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-open-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "AIrena – Multi-LLM Query Productivity App",
-  description: "Minimal, professional AI research workspace.",
+  description: "Compare AI models side-by-side. Get instant answers from ChatGPT, Gemini, and more in one workspace.",
+  keywords: ["AI", "LLM", "ChatGPT", "Gemini", "comparison", "productivity"],
 };
 
 export default function RootLayout({
@@ -19,12 +25,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${openSans.variable} font-sans`}>
+    <html lang="en" className={openSans.variable}>
+      <body className="font-sans antialiased">
+        <a href="#main-content" className="skip-to-content">
+          Skip to content
+        </a>
         <AuthProvider>
           <TimelineProvider>
             <Navbar />
-            <main className="pt-16 min-h-[80vh]">{children}</main>
+            <main id="main-content" className="pt-[var(--nav-height)] min-h-[calc(100vh-var(--nav-height))]">
+              {children}
+            </main>
             <Footer />
           </TimelineProvider>
         </AuthProvider>
